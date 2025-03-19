@@ -1,8 +1,8 @@
-# NTStatus.py 1.0
+# NTStatus.py 1.0.1
 # ThatStella7922 - https://thatstel.la
 
 name = "ntstatus.py"
-ver = "1.0"
+ver = "1.0.1"
 
 import sys
 
@@ -24,8 +24,11 @@ helpStr = """Usage: ntstatus.py exit_code [silent]
     
     Example: ntstatus.py -1073741654
     Example 2: ntstatus.py -1073741654 silent
+
+    You can also show this help again by running with no arguments or with --help or -h.
     
     Notes: 
+    - Adding the silent argument will supress error messages, exiting with code 1 if an error does occur. Run without silent mode to see error messages.
     - I've seen that these Win32 exit codes are often seen when programs crash from some external or NT-related event. Usually they're in the high negatives.
     - You can look up the resulting NTStatus hex code at
       - Microsoft's website: https://learn.microsoft.com/en-us/openspecs/windows_protocols/ms-erref/596a1078-e883-4972-9bbc-49e60bebca55
@@ -52,12 +55,15 @@ def convert_exitstatus_to_ntstatus(exit_status):
     # Convert to NTSTATUS value
     return decimal_to_32bit_signed_hex(exit_status)
 
+# Output function. Takes dec number, hex representation, and silent mode as arguments
 def do_output(decimal_number, hex_representation, silent=False):
-    if not silent:
+    if not silent: # if not silent then print the pretty message
         print()
         print(f'{colors.success} Program exit code {decimal_number} corresponds to NTSTATUS value {colors.pink}{hex_representation}{colors.end}.' + '\nThis value can be looked up at https://learn.microsoft.com/en-us/openspecs/windows_protocols/ms-erref/596a1078-e883-4972-9bbc-49e60bebca55?redirectedfrom=MSDN')
-    else:
+        sys.exit(0)
+    else: # if silent then just print the hex value and nothing else
         print(hex_representation)
+        sys.exit(0)
 
 # Main script
 if len(sys.argv) != 3:
@@ -81,6 +87,21 @@ elif len(sys.argv) != 2:
     print()
     sys.exit(1)
 
-decimal_number = sys.argv[1]
-hex_representation = convert_exitstatus_to_ntstatus(decimal_number)
-do_output(decimal_number, hex_representation, silent=shouldSilent)
+try:
+    decimal_number = sys.argv[1] # Get the exit code from the command line
+    hex_representation = convert_exitstatus_to_ntstatus(decimal_number) # Convert the exit code to NTSTATUS
+    do_output(decimal_number, hex_representation, silent=shouldSilent) # Feed the decimal, hex, and silent mode to the output function so it can handle that
+except ValueError as e:
+    if shouldSilent:
+        sys.exit(1) # Do nothing and exit with code 1 since silent mode is on
+    if sys.argv[1] == "--help" or sys.argv[1] == "-h": # check if the conversion failed because the first argument was for HELP
+        print()
+        print(f"Help for {name} v{ver}:")
+        print(helpStr)
+        print()
+        sys.exit(0) # first argument was for help, exit 0 after showing the help
+
+    #the real exception handling: show the user
+    print()
+    print(f"{colors.fail} Error: The provided exit code is out of range for a 32-bit signed integer or is not an integer.\n    ({e})")
+    sys.exit(1)
